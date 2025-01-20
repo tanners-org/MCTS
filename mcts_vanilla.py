@@ -57,8 +57,7 @@ def expand_leaf(node: MCTSNode, board: Board, state):
 
     """
     # Select a random untried action
-    action = choice(node.untried_actions)
-    node.untried_actions.remove(action)  # Remove the chosen action from the list of untried actions
+    action = node.untried_actions.pop()  # Remove the chosen action from the list of untried actions
     new_state = board.next_state(state, action)  # Update the state
     new_child_node = MCTSNode(  # Create a new child node
         parent=node,
@@ -99,40 +98,40 @@ def backpropagate(node: MCTSNode | None, won: bool):
         node.visits += 1  # Increment visit count for this node
         
         # If it's the bot's turn, increment wins if won
-        # If it's the opponent's turn, invert the result (i.e., lost for bot means won for opponent)
         if won:
             node.wins += 1  # Bot won, increment win counter
-        else:
-            # If the bot lost, we need to account for the opponent's win (invert the win count)
-            node.wins -= 1
         
         # Move up to the parent node
         node = node.parent
 
 
 def ucb(node: MCTSNode, is_opponent: bool):
-    """ Calculates the UCB value for the given node from the perspective of the bot.
-    
+    """
+    Calculates the UCB value for the given node, adjusting for adversarial planning.
+
     Args:
-        node:   A node.
-        is_opponent: A boolean indicating whether or not the last action was performed by the MCTS bot.
+        node: A node in the MCTS tree.
+        is_opponent: A boolean indicating if it's the opponent's turn.
+        explore_factor: The exploration constant (default is sqrt(2)).
         
     Returns:
-        The value of the UCB function for the given node.
+        The UCB value for the given node.
     """
-    # If the node has not been visited, encourage exploration, but don't give max priority
     if node.visits == 0:
-        exploration = sqrt(log(node.parent.visits + 1))  # A smaller exploration value
-        return exploration
+        # Unvisited nodes should have high exploration priority.
+        return float('inf')
 
+    # Exploitation term: the win rate for the current player
     exploitation = node.wins / node.visits
-    
-    # Adjust exploitation for the opponent's perspective
     if is_opponent:
-        exploitation = 1 - exploitation  # Invert exploitation for opponent
-    
+        # Invert exploitation for the opponent's perspective
+        exploitation = 1 - exploitation
+
+    # Exploration term: balances visits vs. potential unexplored value
     exploration = explore_faction * sqrt(log(node.parent.visits) / node.visits)
+
     return exploitation + exploration
+
 
 
 
